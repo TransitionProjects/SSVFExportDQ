@@ -197,80 +197,126 @@ class ExportDQReport:
 
         # create a user readable error for the year entered service column
         year_entered_conditions = [
-        	client_df["YearEnteredService"].isna(),
-        	client_df["YearEnteredService"].notna()
+        	(
+                (client_df["VeteranStatus"] == 1) &
+                client_df["YearEnteredService"].isna()
+            ),
+        	(
+                (client_df["VeteranStatus"] == 1) &
+                client_df["YearEnteredService"].notna()
+            ),
+            (
+                (client_df["VeteranStatus"] == 0) &
+                client_df["YearEnteredService"].isna()
+            ),
+            (
+                (client_df["VeteranStatus"] == 0) &
+                client_df["YearEnteredService"].notna()
+            )
         ]
         year_entered_choices = [
         	"Year Entered Service field is blank",
-        	""
+        	"",
+            "",
+            "Why does this client have a year entered service value when they are not a vet?  This may be an error."
         ]
         client_df["Year Entered Service Error"] = np.select(
             year_entered_conditions,
-            year_entered_choices
+            year_entered_choices,
+            ""
         )
 
         # create a user readable error for the year entered service column
         year_exited_conditions = [
-        	client_df["YearSeparated"].isna(),
-        	client_df["YearSeparated"].notna()
+            (
+                (client_df["VeteranStatus"] == 1) &
+                client_df["YearSeparated"].isna()
+            ),
+        	(
+                (client_df["VeteranStatus"] == 1) &
+                client_df["YearSeparated"].notna()
+            ),
+            (
+                (client_df["VeteranStatus"] == 0) &
+                client_df["YearSeparated"].isna()
+            ),
+            (
+                (client_df["VeteranStatus"] == 0) &
+                client_df["YearSeparated"].notna()
+            )
         ]
         year_exited_choices = [
         	"Year Separated from Service field is blank",
-        	""
+        	"",
+            "",
+            "Why does this client have a year separated from service value when they are not a vet?  This may be an error."
         ]
         client_df["Year Exited Service Error"] = np.select(
             year_exited_conditions,
-            year_exited_choices
+            year_exited_choices,
+            ""
         )
 
         # create a user readable error for the military branch column
         branch_conditions = [
-        	client_df["MilitaryBranch"] == 1,
-        	client_df["MilitaryBranch"] == 2,
-        	client_df["MilitaryBranch"] == 3,
-        	client_df["MilitaryBranch"] == 4,
-        	client_df["MilitaryBranch"] == 5,
-        	client_df["MilitaryBranch"] == 6,
-        	client_df["MilitaryBranch"].isna()
+            (
+                (client_df["VeteranStatus"] == 1) &
+                (client_df["MilitaryBranch"].isin([1,2,3,4,5,6]))
+            ),
+            (
+                (client_df["VeteranStatus"] == 1) &
+                (client_df["MilitaryBranch"].isna())
+            ),
+            (
+                (client_df["VeteranStatus"] == 0) &
+                (client_df["MilitaryBranch"].isin([1,2,3,4,5,6]))
+            ),
+            (
+                (client_df["VeteranStatus"] == 0) &
+                (client_df["MilitaryBranch"].isna())
+            )
         ]
         branch_choices = [
         	"",
-        	"",
-        	"",
-        	"",
-        	"",
-        	"",
-        	"Branch of the Military field is blank"
-        ]
+        	"Branch of the Military field is blank",
+            "A branch of the military was selected but this client is not a vet.  This may be an error.",
+            ""
+         ]
         client_df["Military Branch Error"] = np.select(
             branch_conditions,
-            branch_choices
+            branch_choices,
+            ""
         )
 
         # create a user readable error for the discharge status column
         discharge_conditions = [
-        	client_df["DischargeStatus"] == 1,
-        	client_df["DischargeStatus"] == 2,
-        	client_df["DischargeStatus"] == 3,
-        	client_df["DischargeStatus"] == 4,
-        	client_df["DischargeStatus"] == 5,
-        	client_df["DischargeStatus"] == 6,
-        	client_df["DischargeStatus"] == 7,
-        	client_df["DischargeStatus"].isna()
+            (
+                (client_df["VeteranStatus"] == 1) &
+                (client_df["DischargeStatus"].isin([1,2,3,4,5,6,7]))
+            ),
+            (
+                (client_df["VeteranStatus"] == 1) &
+                (client_df["DischargeStatus"].isna())
+            ),
+            (
+                (client_df["VeteranStatus"] == 0) &
+                (client_df["DischargeStatus"].isin([1,2,3,4,5,6,7]))
+            ),
+            (
+                (client_df["VeteranStatus"] == 0) &
+                (client_df["DischargeStatus"].isna())
+            )
         ]
         discharge_choices = [
         	"",
-        	"",
-        	"",
-        	"",
-        	"",
-        	"",
-        	"",
-        	"Discharge Status field is blank"
+        	"Discharge Status field is blank",
+            "A discharge status was selected but this client is not a vet.  This may be an error.",
+            ""
         ]
         client_df["Discharge Status Error"] = np.select(
             discharge_conditions,
-            discharge_choices
+            discharge_choices,
+            ""
         )
 
         return client_df[[
@@ -317,6 +363,7 @@ class ExportDQReport:
             "PersonalID",
             "Last Grade Completed Error"
         ]].rename(columns={"PersonalID": "Client ID"})
+
 
     def disabilities_dq(self):
         pass
@@ -810,7 +857,38 @@ class ExportDQReport:
             ),
             engine="xlsxwriter"
         )
-        merged.to_excel(writer, sheet_name="Errors", index=False)
+        merged[[
+            "UserID",
+            "Client ID",
+            "Name Data Quality Errors",
+            "Social Security Number Errors",
+            "Social Security Number Data Quality Errors",
+            "Date of Birth Errors",
+            "Date of Birth Data Quality Errors",
+            "Race Errors",
+            "Ethnicity Errors",
+            "Gender Errors",
+            "Relationship To Head of Household Error",
+            "Vet In Household Error",
+            "Living Situation At Entry Error",
+            "Disabling Condition Error",
+            "Income as a Percent AMI Error",
+            "Times Homeless in the Last Three Years Error",
+            "Months Homeless in the Last Three Years Error",
+            "Approximate Date Homelessness Started Error",
+            "Residence Prior to Project Entry Error",
+            "Income From Any Source Error",
+            "Benefits From Any Source Errors",
+            "Insurance From Any Source Error",
+            "Connection to SOAR Error",
+            "Last Grade Completed Error",
+            "VAMC Station Number Error",
+            "Veteran Status Error",
+            "Year Entered Service Error",
+            "Year Exited Service Error",
+            "Military Branch Error",
+            "Discharge Status Error"
+        ]].sort_values(by="UserID").to_excel(writer, sheet_name="Errors", index=False)
         writer.save()
 
 
