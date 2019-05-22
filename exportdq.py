@@ -1,6 +1,6 @@
 __author__ = "David Marienburg"
 __maintainer__ = "David Marienburg"
-__version__ = "1.1"
+__version__ = "1.1.1"
 
 import pandas as pd
 import numpy as np
