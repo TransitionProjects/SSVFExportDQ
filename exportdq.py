@@ -1,10 +1,11 @@
 __author__ = "David Marienburg"
 __maintainer__ = "David Marienburg"
-__version__ = "1.0"
+__version__ = "1.1"
 
 import pandas as pd
 import numpy as np
 import zipfile as zf
+import datetime
 
 from tkinter.filedialog import askopenfilename
 from tkinter.filedialog import asksaveasfilename
@@ -290,6 +291,33 @@ class ExportDQReport:
         ]].rename(columns={"PersonalID": "Client ID"})
 
 
+    def education_dq(self):
+        """
+
+        """
+        # create a local copy of the self.employment_education dataframe
+        edu_df = self.employment_education.copy()
+
+        # create an error column for last grade completed
+        grade_cond = [
+            edu_df["LastGradeCompleted"].isna(),
+            (edu_df["LastGradeCompleted"] == 99)
+        ]
+        grade_choice = [
+            "Last Grade Completed field is blank",
+            "Last Grade Completed field is set to Data Not Collected"
+        ]
+        edu_df["Last Grade Completed Error"] =  np.select(
+            grade_cond,
+            grade_choice,
+            ""
+        )
+
+        return edu_df[[
+            "PersonalID",
+            "Last Grade Completed Error"
+        ]].rename(columns={"PersonalID": "Client ID"})
+
     def disabilities_dq(self):
         pass
 
@@ -435,7 +463,7 @@ class ExportDQReport:
             	(merged_3["LivingSituation"] == 27)
             ]
             non_homeless_choice = [
-            	"",
+            	"Residence Prior to Project Entry field was left blank",
             	"",
             	"",
             	"",
@@ -462,7 +490,7 @@ class ExportDQReport:
             	(merged_3["LivingSituation"] == 27)
             ]
             homeless_choice = [
-            	"",
+            	"Residence Prior to Project Entry field was left blank",
             	"Homeless living situation at the time of entry into a HP provider",
             	"Homeless living situation at the time of entry into a HP provider",
             	"",
@@ -590,7 +618,8 @@ class ExportDQReport:
         ]
         merged_3["Approximate Date Homelessness Started Error"] = np.select(
             approx_cond,
-            approx_choices
+            approx_choices,
+            ""
         )
 
         # create a residence prior to project entry error
@@ -618,7 +647,8 @@ class ExportDQReport:
             "Times Homeless in the Last Three Years Error",
             "Months Homeless in the Last Three Years Error",
             "Approximate Date Homelessness Started Error",
-            "Residence Prior to Project Entry Error"
+            "Residence Prior to Project Entry Error",
+            "UserID"
         ]].rename(columns={"PersonalID": "Client ID"})
 
 
@@ -724,11 +754,31 @@ class ExportDQReport:
             insur_choice
         )
 
+        # create a SOAR error Report
+        soar_cond = [
+            (income_df["ConnectionWithSOAR"].isna()),
+            (income_df["ConnectionWithSOAR"] == 8),
+            (income_df["ConnectionWithSOAR"] == 9),
+            (income_df["ConnectionWithSOAR"] == 99)
+        ]
+        soar_choices = [
+            "The Connection to SOAR field was left blank",
+            "The option selected for the Connection to SOAR field is not acceptable to the VA",
+            "The option selected for the Connection to SOAR field (Client Refused) is not acceptable to the VA",
+            "The option selected for the Connection to SOAR field (Data not collected) is not acceptable to the VA"
+        ]
+        income_df["Connection to SOAR Error"] = np.select(
+            soar_cond,
+            soar_choices,
+            ""
+        )
+
         return income_df[[
             "PersonalID",
             "Income From Any Source Error",
             "Benefits From Any Source Errors",
-            "Insurance From Any Source Error"
+            "Insurance From Any Source Error",
+            "Connection to SOAR Error"
         ]].rename(columns={"PersonalID": "Client ID"})
 
 
@@ -736,6 +786,7 @@ class ExportDQReport:
         client = self.client_dq()
         enrolled = self.enrollment_dq()
         benefits = self.income_benefits_dq()
+        education = self.education_dq()
 
         merged = client.merge(
             enrolled,
@@ -745,10 +796,18 @@ class ExportDQReport:
             benefits,
             on="Client ID",
             how="left"
+        ).merge(
+            education,
+            on="Client ID",
+            how="left"
         )
 
         writer = pd.ExcelWriter(
-            asksaveasfilename(title="Save the SSVF Export DQ Report"),
+            asksaveasfilename(
+                title="Save the SSVF Export DQ Report",
+                defaultextension=".xlsx",
+                initialfile="SSVF Export DQ Report {}.xlsx".format(datetime.date.today())
+            ),
             engine="xlsxwriter"
         )
         merged.to_excel(writer, sheet_name="Errors", index=False)
